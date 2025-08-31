@@ -100,6 +100,10 @@ class PathModularizationCache {
      * <p>If the dependency can be a constituent of both the class-path and the module-path,
      * then the path type is determined by checking if the dependency is modular.</p>
      *
+     * <p>If a module provides annotation processors via the module system's {@code provides}
+     * directive, it will be placed on the processor module path when processor paths are
+     * available.</p>
+     *
      * @param types types of path where a dependency can be placed
      * @param filter filter the paths accepted by the tool which will consume the path
      * @param path path to the JAR file or output directory of the dependency
@@ -135,12 +139,29 @@ class PathModularizationCache {
                 }
             }
         }
+
+        PathModularization modularization = getModuleInfo(path);
+        boolean providesProcessors = modularization.providesAnnotationProcessors();
+
         /*
          * If the dependency can be both on the class-path and the module-path, we need to chose one of these.
          * The choice done below will overwrite the current `selected` value because the latter is only the
          * first value encountered in iteration order, which may be random.
+         *
+         * Special case: If a module provides annotation processors and processor paths are available,
+         * prefer the processor paths over regular class/module paths.
          */
-        if (classes | modules) {
+        if (providesProcessors && (processorClasses || processorModules)) {
+            if (processorModules && modularization.getPathType() == JavaPathType.MODULES) {
+                selected = JavaPathType.PROCESSOR_MODULES;
+            } else if (processorClasses) {
+                selected = JavaPathType.PROCESSOR_CLASSES;
+            } else if (modules && modularization.getPathType() == JavaPathType.MODULES) {
+                selected = JavaPathType.MODULES;
+            } else if (classes) {
+                selected = JavaPathType.CLASSES;
+            }
+        } else if (classes | modules) {
             if (classes & modules) {
                 selected = getPathType(path);
             } else if (classes) {

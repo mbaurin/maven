@@ -254,6 +254,28 @@ class PathModularization {
     }
 
     /**
+     * {@return whether this module provides annotation processors}
+     * This method checks if any module in this path element provides the
+     * {@code javax.annotation.processing.Processor} service via the module
+     * system's {@code provides} directive.
+     */
+    public boolean providesAnnotationProcessors() {
+        if (descriptors.isEmpty()) {
+            return false;
+        }
+
+        for (Object descriptor : descriptors.values()) {
+            if (descriptor instanceof ModuleDescriptor moduleDesc) {
+                if (moduleDesc.provides().stream()
+                        .anyMatch(provides -> "javax.annotation.processing.Processor".equals(provides.service()))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * {@return a string representation of this object for debugging purposes}
      * This string representation may change in any future version.
      */
